@@ -14,6 +14,7 @@ public:
 	bool load();
 	std::string getString(string key);
 	float getNumber(string key);
+	unsigned char getByte(string key);
 	bool getBool(string key);
 	int findInList(std::vector<string> list, string item);
 };

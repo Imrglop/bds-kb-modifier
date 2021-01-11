@@ -17,11 +17,11 @@ const { NativeModule } = require("bdsx");
 // bdsx example
 const knockback = new NativeModule("KBModifier.dll");
 
-// void SetKnockbackStatus(int status)
-const SetKnockbackStatus = knockback.get("SetKnockbackStatus");
+// void SetKnockbackMode(int mode)
+const SetKnockbackMode = knockback.get("SetKnockbackMode");
 
-SetKnockbackStatus(0x0); // 0: decreased knockback (0.25)
-SetKnockbackStatus(0x1); // 1: default knockback (0.50)
-SetKnockbackStatus(0x2); // 2: increased knockback (0.75)
+SetKnockbackMode(0x0); // 0: decreased knockback (0.25)
+SetKnockbackMode(0x1); // 1: default knockback (0.50)
+SetKnockbackMode(0x2); // 2: increased knockback (0.75)
 // refer to config
 ```

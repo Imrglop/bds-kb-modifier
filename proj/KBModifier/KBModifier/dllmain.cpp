@@ -69,6 +69,11 @@ void SetKnockbackModeStr(string mode)
         kb::get(mode));
 }
 
+void ReloadConfig()
+{
+    config.load();
+}
+
 void SetKnockbackStatus(int status) // 1: knockback ON, 0: knockback OFF
 {
     if (status == 1) {
@@ -87,7 +92,22 @@ void SetKnockbackStatus(int status) // 1: knockback ON, 0: knockback OFF
 
 void SetMobCollision(int status) // 1/0
 {
-    // comingsoon
+    if (status) 
+    {
+        // turn on
+        hook.WriteBytes(moduleBase + 0xa51b52,
+            // F3 0F 11 83 D4 04 00 00
+            { 0xF3, 0x0F, 0x11, 0x83, 0xD4, 0x04, 0x00, 0x00 }); // x velocity 
+        hook.WriteBytes(moduleBase + 0xa51b7c,
+            // F3 0F 11 83 DC 04 00 00
+            { 0xF3, 0x0F, 0x11, 0x83, 0xDC, 0x04, 0x00, 0x00 }); // Z velocity 
+    }
+    else
+    {
+        // turn off
+        hook.NOPBytes(moduleBase + 0xa51b52, 8); // x velocity (movss [rbx+000004D4],xmm0 -> NOP)
+        hook.NOPBytes(moduleBase + 0xa51b7c, 8); // z velocity
+    }
 }
 
 void printVector(std::vector<byte> vector) {
@@ -124,9 +144,12 @@ BOOL APIENTRY DllMain( HMODULE hModule,
             log << "Couldn't load config! Check your file.\n";
             return FALSE;
         };
+        string formatVersion = "1.0.0";
         bool isNoKnockback = config.getBool("no_knockback");
+//      bool isAdvancedKnockback = config.getBool("advanced_knockback");
         DWORD pID = GetCurrentProcessId();
         moduleBase = GetModuleBase(pID, (WCHAR*)_T("bedrock_server.exe"));
+        codeAddy = moduleBase + 0xF2F926;
         if (isNoKnockback) 
         {
             // 1.16.200
@@ -139,13 +162,19 @@ BOOL APIENTRY DllMain( HMODULE hModule,
                 log << "Error patching bytes! e: " << e.what() << '\n';
             }
         }
-        else {
-            codeAddy = moduleBase + 0xF2F926;
-            DWORD_PTR defaultAddy = moduleBase + 0x1BD4DA0;
+        else 
+        {
             string newKnockback = config.getString("new_knockback");
-            printVector(kb::get(newKnockback));
             SetKnockbackModeStr(newKnockback);
             log << "Set knockback to: " << newKnockback << '\n';
+        }
+        if (formatVersion.compare("1.0.0") != 0)
+        {
+            bool isCollisionDisabled = config.getBool("mob_collision_off");
+            if (isCollisionDisabled) {
+                log << "Disabling mob collision\n";
+                SetMobCollision(TRUE);
+            }
         }
     }
     return TRUE;
