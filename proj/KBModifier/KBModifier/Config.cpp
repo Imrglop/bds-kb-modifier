@@ -13,7 +13,7 @@ std::vector<string> values;
 
 const char* filepath = "kb_config.properties";
 char splitChar = '=';
-const char* fileDefault = "!! Knockback Mod for BDS 1.16.200.2 (1.1.0)\n!! by Imrglop\n\n# Anything starting with '#' or '!' is a comment\n\nformat_version=1.1.0\n\n############################################################\n\n# default doesn't include W-Tapping, if you set it anything more than \n# default, you will have w-tapping on your server\n\nnew_knockback=double\n\n# Allowed values:\n\n! decreased: 0.25\n! default: 0.50\n! extended: 0.75\n! double: 1.0\n! quad: 2.0\n! far: 5.0\n! extreme: 10.0\n\n# Allowed values : true / false\n# Will disable knockback.\n\nno_knockback=false\n\n# Description: will disable mob collision\nmob_collision_off=false\n\n###########################################################";
+const char* fileDefault = "!! Knockback Mod for BDS (1.1.0)\n!! by Imrglop\n\n# Anything starting with '#' is a comment\n\nformat_version=1.1.0\n\n############################################################\n\n# default doesn't include W-Tapping, if you set it anything more than \n# default, you will have w-tapping on your server\n\nnew_knockback=double\n\n# Allowed values:\n\n! decreased: 0.25\n! default: 0.50\n! extended: 0.75\n! double: 1.0\n! quad: 2.0\n! far: 5.0\n! extreme: 10.0\n\n# Allowed values : true / false\n# Will disable knockback.\n\nno_knockback=false\n\n# Description: will disable mob collision\nmob_collision_off=true\n\n# Description: the time (in ticks) in between each hit for mobs/players\n# default: 10\n# allowed values: Any number without decimal\nhurt_time=10\n\n###########################################################";
 
 bool Config::load()
 {
@@ -73,6 +73,19 @@ int Config::findInList(std::vector<string> list, string item)
 bool Config::getBool(string key)
 {
 	return values[findInList(keys, key)].compare("true") == 0 ? true : false;
+}
+
+int Config::getInteger(string key)
+{
+	try {
+		string toint = values[findInList(keys, key)];
+		return std::stoi(toint);
+	}
+	catch (std::exception e)
+	{
+		log << "Config Error: cannot set " << key << " to integer\n";
+		return 0;
+	}
 }
 
 float Config::getNumber(string key)

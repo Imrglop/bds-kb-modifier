@@ -5,6 +5,8 @@
 #include <tchar.h>
 #include "Config.h"
 #include "hook.h"
+#include <sstream>
+#include <string>
 
 // exportable to other programs/scripts
 
@@ -20,6 +22,7 @@
 extern "C" KBMOD_API void SetKnockbackStatus(int status); // sets whether u take knockback or not
 extern "C" KBMOD_API void SetKnockbackMode(int mode); // sets how much knockback u take & w-tapping
 extern "C" KBMOD_API void SetKnockbackModeStr(string mode); // pretty much setknockbackmode but its "default","decreased","far",etc
+extern "C" KBMOD_API void SetHurtTime(int ticks); // sets the time between each hit in entities
 extern "C" KBMOD_API void ReloadConfig();
 
 // misc

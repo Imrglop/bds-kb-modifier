@@ -11,6 +11,7 @@ Config config;
 Hook hook;
 DWORD_PTR moduleBase;
 DWORD_PTR codeAddy;
+HANDLE hConsole;
 
 namespace kb // offsets
 { 
@@ -74,6 +75,28 @@ void ReloadConfig()
     config.load();
 }
 
+std::vector<byte> intToBytes(int val)
+{
+    std::vector<byte> bytes = { 0, 0, 0, 0 };
+
+    unsigned char const* plist = reinterpret_cast<unsigned char const*>(&val);
+    for (UINT i = 0; i < 4; i++)
+    {
+        bytes[i] = plist[i];
+    }
+    return bytes;
+}
+
+void SetHurtTime(int ticks)
+{
+    std::vector<byte> bytes = intToBytes(ticks);
+    // -- -- -- -- -- -- (the value) 
+    // C7 87 98 02 00 00 0A 00 00 00 = mov [rdi+00000298],0000000A
+    // F2EEF0
+    hook.WriteBytes((DWORD_PTR)(moduleBase + 0xF2EEF0),
+        { 0xC7, 0x87, 0x98, 0x02, 0x00, 0x00, bytes[0], bytes[1], bytes[2], bytes[3] });
+}
+
 void SetKnockbackStatus(int status) // 1: knockback ON, 0: knockback OFF
 {
     if (status == 1) {
@@ -110,6 +133,24 @@ void SetMobCollision(int status) // 1/0
     }
 }
 
+bool CompareVersions(string ver1, string ver2)
+{
+    std::vector<string> sl1;
+    auto is = std::istringstream(ver1);
+    for (std::string each; std::getline(is, each, '.');) {
+        sl1.push_back(each);
+    };
+
+    std::vector<string> sl2;
+    auto is2 = std::istringstream(ver2);
+    for (std::string each; std::getline(is2, each, '.');) {
+        sl2.push_back(each);
+    };
+    return (sl1[0] >= sl2[0]
+        && sl1[1] >= sl2[1]
+        && sl1[2] >= sl2[2]);
+}
+
 void printVector(std::vector<byte> vector) {
     std::cout << "vector contents: ";
     for (UINT i = 0; i < vector.size(); i++)
@@ -117,18 +158,6 @@ void printVector(std::vector<byte> vector) {
         std::cout << std::hex << (int)vector[i] << " ";
     }
     std::cout << std::endl;
-}
-
-std::vector<byte> uintToBytes(UINT val)
-{
-    std::vector<byte> bytes = { 0, 0, 0, 0 };
-
-    unsigned char const* plist = reinterpret_cast<unsigned char const*>(&val);
-    for (UINT i = 0; i < 4; i++)
-    {
-        bytes[i] = plist[i];
-    }
-    return bytes;
 }
 
 
@@ -144,8 +173,11 @@ BOOL APIENTRY DllMain( HMODULE hModule,
             log << "Couldn't load config! Check your file.\n";
             return FALSE;
         };
-        string formatVersion = "1.0.0";
+        hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+        string formatVersion = "1.1.0";
+        string currentFormatVersion = config.getString("format_version");
         bool isNoKnockback = config.getBool("no_knockback");
+        int newHurtTime = config.getInteger("hurt_time");
 //      bool isAdvancedKnockback = config.getBool("advanced_knockback");
         DWORD pID = GetCurrentProcessId();
         moduleBase = GetModuleBase(pID, (WCHAR*)_T("bedrock_server.exe"));
@@ -168,13 +200,22 @@ BOOL APIENTRY DllMain( HMODULE hModule,
             SetKnockbackModeStr(newKnockback);
             log << "Set knockback to: " << newKnockback << '\n';
         }
-        if (formatVersion.compare("1.0.0") != 0)
+        if (CompareVersions("1.1.0", formatVersion))
         {
+            SetHurtTime(newHurtTime);
+            log << "Hurt Time: " << newHurtTime << '\n';
             bool isCollisionDisabled = config.getBool("mob_collision_off");
             if (isCollisionDisabled) {
                 log << "Disabling mob collision\n";
-                SetMobCollision(TRUE);
+                SetMobCollision(FALSE);
             }
+        }
+        if (!CompareVersions(currentFormatVersion, formatVersion)) 
+        {
+            SetConsoleTextAttribute(hConsole, 0xE); // yellow
+            log << "Outdated format version " << currentFormatVersion << ", new version: " << formatVersion << '\n';
+            log << "If you want to update, go to github.com/Imrglop/bds-kb-modifier\n";
+            SetConsoleTextAttribute(hConsole, 0x7); // light gray idk
         }
     }
     return TRUE;
