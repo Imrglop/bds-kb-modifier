@@ -11,19 +11,21 @@ Config config;
 Hook hook;
 DWORD_PTR moduleBase;
 DWORD_PTR codeAddy;
+DWORD_PTR normalKbAddy;
 HANDLE hConsole;
 
 namespace kb // offsets
 { 
     std::vector<string> kbKeys = { "decreased", "default", "extended", "double", "quad", "far", "extreme" };
     std::vector<std::vector<byte>> kbValues = {
-        { 0xF3, 0x0F, 0x10, 0x0D, 0xC6, 0x53, 0xCA, 0x00 }, // dec
-        { 0xF3, 0x0F, 0x10, 0x0D, 0x72, 0x54, 0xCA, 0x00 }, // def
-        { 0xF3, 0x0F, 0x10, 0x0D, 0xF2, 0x54, 0xCA, 0x00 }, // extended
-        { 0xF3, 0x0F, 0x10, 0x0D, 0x6A, 0x55, 0xCA, 0x00 }, // double
-        { 0xF3, 0x0F, 0x10, 0x0D, 0x4A, 0x56, 0xCA, 0x00 }, // quad
-        { 0xF3, 0x0F, 0x10, 0x0D, 0x12, 0x59, 0xCA, 0x00 }, // far
-        { 0xF3, 0x0F, 0x10, 0x0D, 0x72, 0x59, 0xCA, 0x00 }, // extreme
+        { /*0xF3, 0x0F, 0x10, 0x0D, */0xC6, 0x53, 0xCA, 0x00 }, // dec
+        { 0x72, 0x54, 0xCA, 0x00 }, // def
+        { 0xF2, 0x54, 0xCA, 0x00 }, // extended
+        { 0x6A, 0x55, 0xCA, 0x00 }, // double
+        { 0x4A, 0x56, 0xCA, 0x00 }, // quad
+        { 0x12, 0x59, 0xCA, 0x00 }, // far
+        { 0x72, 0x59, 0xCA, 0x00 }, // extreme
+        { /*0xF3, 0x0F, 0x59, 0x25*/ 0xCD, 0x54, 0xCA, 0x00 } // default-normal
     }; // edited asm codes
     std::vector<byte> get(std::string key) {
         return kbValues[config.findInList(kbKeys, key)];
@@ -58,16 +60,30 @@ DWORD_PTR GetModuleBase(DWORD pID, wchar_t* moduleName)
     return _moduleBase;
 }
 
-void SetKnockbackMode(int mode)
+void SetSprintKnockback(int mode)
 {
+    auto vec = kb::kbValues[mode];
     hook.WriteBytes(codeAddy,
-        kb::kbValues[mode]);
+        { 0xF3, 0x0F, 0x10, 0x0D, vec[0], vec[1], vec[2], vec[3] });
 }
 
-void SetKnockbackModeStr(string mode)
+void SetSprintKnockbackStr(string mode)
 {
+    auto vec = kb::get(mode);
     hook.WriteBytes(codeAddy,
-        kb::get(mode));
+        { 0xF3, 0x0F, 0x10, 0x0D, vec[0], vec[1], vec[2], vec[3] });
+}
+
+void SetKnockback(int mode)
+{
+    auto vec = kb::kbValues[mode];
+    hook.WriteBytes(normalKbAddy,
+        { 0xF3, 0x0F, 0x59, 0x25, vec[0], vec[1], vec[2], vec[3] });
+}
+
+void SetKnockbackStr(string mode)
+{
+    
 }
 
 void ReloadConfig()
@@ -173,15 +189,43 @@ BOOL APIENTRY DllMain( HMODULE hModule,
             log << "Couldn't load config! Check your file.\n";
             return FALSE;
         };
-        hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
         string formatVersion = "1.1.0";
         string currentFormatVersion = config.getString("format_version");
+        log << "Loaded config with format version " << currentFormatVersion << '\n';
+        hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
         bool isNoKnockback = config.getBool("no_knockback");
         int newHurtTime = config.getInteger("hurt_time");
 //      bool isAdvancedKnockback = config.getBool("advanced_knockback");
         DWORD pID = GetCurrentProcessId();
         moduleBase = GetModuleBase(pID, (WCHAR*)_T("bedrock_server.exe"));
         codeAddy = moduleBase + 0xF2F926;
+        normalKbAddy = moduleBase + 0xf2f897;
+        string newSprintKnockback;
+        if (CompareVersions("1.1.0", formatVersion))
+        {
+            newSprintKnockback = config.getString("sprint_knockback");
+            string newKnockback = config.getString("knockback");
+            SetKnockbackStr(newKnockback);
+            log << "Knockback: " << newKnockback << '\n';
+            SetHurtTime(newHurtTime);
+            log << "Hurt Time: " << newHurtTime << '\n';
+            bool isCollisionDisabled = config.getBool("mob_collision_off");
+            if (isCollisionDisabled) {
+                log << "Disabling mob collision\n";
+                SetMobCollision(FALSE);
+            }
+        } 
+        else if (!CompareVersions(currentFormatVersion, formatVersion)) 
+        {
+            if (!CompareVersions("1.1.0", formatVersion))
+            {
+                newSprintKnockback = config.getString("new_knockback");
+            }
+            SetConsoleTextAttribute(hConsole, 0xE); // yellow
+            log << "Outdated format version " << currentFormatVersion << ", new version: " << formatVersion << '\n';
+            log << "If you want to update, go to github.com/Imrglop/bds-kb-modifier\n";
+            SetConsoleTextAttribute(hConsole, 0x7); // light gray idk
+        }
         if (isNoKnockback) 
         {
             // 1.16.200
@@ -196,26 +240,8 @@ BOOL APIENTRY DllMain( HMODULE hModule,
         }
         else 
         {
-            string newKnockback = config.getString("new_knockback");
-            SetKnockbackModeStr(newKnockback);
-            log << "Set knockback to: " << newKnockback << '\n';
-        }
-        if (CompareVersions("1.1.0", formatVersion))
-        {
-            SetHurtTime(newHurtTime);
-            log << "Hurt Time: " << newHurtTime << '\n';
-            bool isCollisionDisabled = config.getBool("mob_collision_off");
-            if (isCollisionDisabled) {
-                log << "Disabling mob collision\n";
-                SetMobCollision(FALSE);
-            }
-        }
-        if (!CompareVersions(currentFormatVersion, formatVersion)) 
-        {
-            SetConsoleTextAttribute(hConsole, 0xE); // yellow
-            log << "Outdated format version " << currentFormatVersion << ", new version: " << formatVersion << '\n';
-            log << "If you want to update, go to github.com/Imrglop/bds-kb-modifier\n";
-            SetConsoleTextAttribute(hConsole, 0x7); // light gray idk
+            SetSprintKnockbackStr(newSprintKnockback);
+            log << "Sprint-knockback: " << newSprintKnockback << '\n';
         }
     }
     return TRUE;

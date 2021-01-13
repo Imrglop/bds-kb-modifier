@@ -20,8 +20,10 @@
 
 // knockback
 extern "C" KBMOD_API void SetKnockbackStatus(int status); // sets whether u take knockback or not
-extern "C" KBMOD_API void SetKnockbackMode(int mode); // sets how much knockback u take & w-tapping
-extern "C" KBMOD_API void SetKnockbackModeStr(string mode); // pretty much setknockbackmode but its "default","decreased","far",etc
+extern "C" KBMOD_API void SetSprintKnockback(int mode); // sets how much knockback u take while sprinting/w-tapping
+extern "C" KBMOD_API void SetSprintKnockbackStr(string mode); // pretty much setsprintknockback but its "default","decreased","far",etc
+extern "C" KBMOD_API void SetKnockback(int mode);
+extern "C" KBMOD_API void SetKnockbackStr(string mode);
 extern "C" KBMOD_API void SetHurtTime(int ticks); // sets the time between each hit in entities
 extern "C" KBMOD_API void ReloadConfig();
 
