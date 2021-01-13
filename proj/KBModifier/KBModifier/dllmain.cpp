@@ -16,7 +16,7 @@ HANDLE hConsole;
 
 namespace kb // offsets
 { 
-    std::vector<string> kbKeys = { "decreased", "default", "extended", "double", "quad", "far", "extreme" };
+    std::vector<string> kbKeys = { "decreased", "default", "extended", "double", "quad", "far", "extreme", "default-normal" };
     std::vector<std::vector<byte>> kbValues = {
         { /*0xF3, 0x0F, 0x10, 0x0D, */0xC6, 0x53, 0xCA, 0x00 }, // dec
         { 0x72, 0x54, 0xCA, 0x00 }, // def
