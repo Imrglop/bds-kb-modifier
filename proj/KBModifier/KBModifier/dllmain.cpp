@@ -9,10 +9,16 @@
 
 Config config;
 Hook hook;
-DWORD_PTR moduleBase;
-DWORD_PTR codeAddy;
-DWORD_PTR normalKbAddy;
 HANDLE hConsole;
+
+namespace address
+{
+    DWORD_PTR sprint;
+    DWORD_PTR address::code;
+    DWORD_PTR address::yKnockback;
+    DWORD_PTR normal;
+    DWORD_PTR address::moduleBase;
+}
 
 namespace kb // offsets
 { 
@@ -35,7 +41,7 @@ namespace kb // offsets
 
 DWORD_PTR GetModuleBase(DWORD pID, wchar_t* moduleName) 
 {
-    DWORD_PTR _moduleBase = 0;
+    DWORD_PTR moduleBase = 0;
     DWORD _err;
     HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE | TH32CS_SNAPMODULE32, pID);
     if (hSnapshot != INVALID_HANDLE_VALUE) 
@@ -46,7 +52,7 @@ DWORD_PTR GetModuleBase(DWORD pID, wchar_t* moduleName)
             do {
                 if (_tcsicmp(moduleEntry32.szModule, moduleName) == NULL) {
                     // found match
-                    _moduleBase = (DWORD_PTR)moduleEntry32.modBaseAddr;
+                    moduleBase = (DWORD_PTR)moduleEntry32.modBaseAddr;
                     break;
                 }
             } while (Module32NextW(hSnapshot, &moduleEntry32));
@@ -57,33 +63,41 @@ DWORD_PTR GetModuleBase(DWORD pID, wchar_t* moduleName)
         _err = GetLastError();
         log << "CreateTH32Snapshot failed! error: " << _err << '\n';
     }
-    return _moduleBase;
+    return moduleBase;
 }
 
 void SetSprintKnockback(int mode)
 {
     auto vec = kb::kbValues[mode];
-    hook.WriteBytes(codeAddy,
+    hook.WriteBytes(address::code,
         { 0xF3, 0x0F, 0x10, 0x0D, vec[0], vec[1], vec[2], vec[3] });
 }
 
 void SetSprintKnockbackStr(string mode)
 {
     auto vec = kb::get(mode);
-    hook.WriteBytes(codeAddy,
+    hook.WriteBytes(address::code,
         { 0xF3, 0x0F, 0x10, 0x0D, vec[0], vec[1], vec[2], vec[3] });
 }
 
 void SetKnockback(int mode)
 {
     auto vec = kb::kbValues[mode];
-    hook.WriteBytes(normalKbAddy,
+    hook.WriteBytes(address::normal,
         { 0xF3, 0x0F, 0x59, 0x25, vec[0], vec[1], vec[2], vec[3] });
+}
+
+void SetYKnockback(float yKnockback)
+{
+    hook.WriteBytes(address::yKnockback,
+        {});
 }
 
 void SetKnockbackStr(string mode)
 {
-    
+    auto vec = kb::get(mode);
+    hook.WriteBytes(address::normal,
+        { 0xF3, 0x0f, 0x59, 0x25, vec[0], vec[1], vec[2], vec[3] });
 }
 
 void ReloadConfig()
@@ -109,7 +123,7 @@ void SetHurtTime(int ticks)
     // -- -- -- -- -- -- (the value) 
     // C7 87 98 02 00 00 0A 00 00 00 = mov [rdi+00000298],0000000A
     // F2EEF0
-    hook.WriteBytes((DWORD_PTR)(moduleBase + 0xF2EEF0),
+    hook.WriteBytes((DWORD_PTR)(address::moduleBase + 0xF2EEF0),
         { 0xC7, 0x87, 0x98, 0x02, 0x00, 0x00, bytes[0], bytes[1], bytes[2], bytes[3] });
 }
 
@@ -117,15 +131,15 @@ void SetKnockbackStatus(int status) // 1: knockback ON, 0: knockback OFF
 {
     if (status == 1) {
         // turn on
-        hook.WriteBytes((DWORD_PTR)(moduleBase + 0xF2F936), { 0xF3, 0x0F, 0x11, 0x93, 0xD4, 0x04, 0x00, 0x00 }); // (x) NOP -> movss [rbx+000004D4],xmm2
-        hook.WriteBytes((DWORD_PTR)(moduleBase + 0xF2F94E), { 0xF3, 0x0F, 0x11, 0x93, 0xD8, 0x04, 0x00, 0x00 }); // (x) NOP -> movss [rbx+000004D8],xmm2
-        hook.WriteBytes((DWORD_PTR)(moduleBase + 0xF2F966), { 0xF3, 0x0F, 0x11, 0x83, 0xDC, 0x04, 0x00, 0x00 }); // (x) NOP -> movss [rbx+000004DC],xmm0
+        hook.WriteBytes((DWORD_PTR)(address::moduleBase + 0xF2F936), { 0xF3, 0x0F, 0x11, 0x93, 0xD4, 0x04, 0x00, 0x00 }); // (x) NOP -> movss [rbx+000004D4],xmm2
+        hook.WriteBytes((DWORD_PTR)(address::yKnockback), { 0xF3, 0x0F, 0x11, 0x93, 0xD8, 0x04, 0x00, 0x00 }); // (x) NOP -> movss [rbx+000004D8],xmm2
+        hook.WriteBytes((DWORD_PTR)(address::moduleBase + 0xF2F966), { 0xF3, 0x0F, 0x11, 0x83, 0xDC, 0x04, 0x00, 0x00 }); // (x) NOP -> movss [rbx+000004DC],xmm0
     }
     else {
         // turn off
-        hook.NOPBytes((DWORD_PTR)(moduleBase + 0xF2F936), 8); // (x) movss [rbx+000004D4],xmm2 -> NOP
-        hook.NOPBytes((DWORD_PTR)(moduleBase + 0xF2F94E), 8); // (y) movss [rbx+000004D8],xmm2 -> NOP
-        hook.NOPBytes((DWORD_PTR)(moduleBase + 0xF2F966), 8); // (z) movss [rbx+000004DC],xmm0 -> NOP
+        hook.NOPBytes((DWORD_PTR)(address::moduleBase + 0xF2F936), 8); // (x) movss [rbx+000004D4],xmm2 -> NOP
+        hook.NOPBytes((DWORD_PTR)(address::yKnockback), 8); // (y) movss [rbx+000004D8],xmm2 -> NOP
+        hook.NOPBytes((DWORD_PTR)(address::moduleBase + 0xF2F966), 8); // (z) movss [rbx+000004DC],xmm0 -> NOP
     }
 }
 
@@ -134,18 +148,18 @@ void SetMobCollision(int status) // 1/0
     if (status) 
     {
         // turn on
-        hook.WriteBytes(moduleBase + 0xa51b52,
+        hook.WriteBytes(address::moduleBase + 0xa51b52,
             // F3 0F 11 83 D4 04 00 00
             { 0xF3, 0x0F, 0x11, 0x83, 0xD4, 0x04, 0x00, 0x00 }); // x velocity 
-        hook.WriteBytes(moduleBase + 0xa51b7c,
+        hook.WriteBytes(address::moduleBase + 0xa51b7c,
             // F3 0F 11 83 DC 04 00 00
             { 0xF3, 0x0F, 0x11, 0x83, 0xDC, 0x04, 0x00, 0x00 }); // Z velocity 
     }
     else
     {
         // turn off
-        hook.NOPBytes(moduleBase + 0xa51b52, 8); // x velocity (movss [rbx+000004D4],xmm0 -> NOP)
-        hook.NOPBytes(moduleBase + 0xa51b7c, 8); // z velocity
+        hook.NOPBytes(address::moduleBase + 0xa51b52, 8); // x velocity (movss [rbx+000004D4],xmm0 -> NOP)
+        hook.NOPBytes(address::moduleBase + 0xa51b7c, 8); // z velocity
     }
 }
 
@@ -189,20 +203,52 @@ BOOL APIENTRY DllMain( HMODULE hModule,
             log << "Couldn't load config! Check your file.\n";
             return FALSE;
         };
-        string formatVersion = "1.1.0";
+        string formatVersion = "1.2.0";
         string currentFormatVersion = config.getString("format_version");
         log << "Loaded config with format version " << currentFormatVersion << '\n';
         hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
         bool isNoKnockback = config.getBool("no_knockback");
+        bool isYKnockback = config.getBool("edit_y_knockback");
         int newHurtTime = config.getInteger("hurt_time");
 //      bool isAdvancedKnockback = config.getBool("advanced_knockback");
+        // allocate memory , needed for stuff
+        VirtualAlloc((LPVOID)(address::moduleBase + 0x7FF6F51E0000), 0x100, MEM_COMMIT, PAGE_EXECUTE_READWRITE); 
         DWORD pID = GetCurrentProcessId();
-        moduleBase = GetModuleBase(pID, (WCHAR*)_T("bedrock_server.exe"));
-        codeAddy = moduleBase + 0xF2F926;
-        normalKbAddy = moduleBase + 0xf2f897;
+        address::moduleBase = GetModuleBase(pID, (WCHAR*)_T("bedrock_server.exe"));
+        address::code = address::moduleBase + 0xF2F926;
+        address::yKnockback = address::moduleBase + 0xf2f94e;
+        address::normal = address::moduleBase + 0xf2f897;
         string newSprintKnockback;
-        if (CompareVersions("1.1.0", formatVersion))
+        if (CompareVersions("1.1.0", currentFormatVersion))
         {
+            if (CompareVersions("1.2.0", currentFormatVersion))
+            {
+                if (isYKnockback) 
+                {
+                    float newYKnockback = config.getNumber("y_knockback");
+                    log << "Y Knockback: " << newYKnockback << '\n';
+                    hook.WriteBytes(0x7FF6F51E0000,
+                        { 0xC7, 0x83, 0xD8, 0x04, 00, 00, 00, 00, 00, 0x3F, 0xE9, 0x47, 0xF9, 0xF3, 0x00 });
+                    /*
+                    * C7 83 D8 04 00 00 00 00 00 3F E9 47 F9 F3 00
+                    * disassembled:
+                    * mov [rbx+000004D8],3F000000
+                    * jmp bedrock_server.exe+F2F956
+                    */
+
+                    hook.WriteBytes(address::yKnockback,
+                        { 0xE9, 0xAD, 0x06, 0x0C, 0xFF, 0x0F, 0x1F, 00 });
+                    /*
+                    * old:
+                    * F3 0F 11 93 D8 04 00 00
+                    * new:
+                    * E9 AD 06 0C FF 0F 1F 00
+                    * disassembled:
+                    * jmp 7FF6F611F94E
+                    * nop dword ptr [rax]
+                    */
+                }
+            }
             newSprintKnockback = config.getString("sprint_knockback");
             string newKnockback = config.getString("knockback");
             SetKnockbackStr(newKnockback);
