@@ -14,10 +14,10 @@ HANDLE hConsole;
 namespace address
 {
     DWORD_PTR sprint;
-    DWORD_PTR address::code;
-    DWORD_PTR address::yKnockback;
+    DWORD_PTR code;
+    DWORD_PTR yKnockback;
     DWORD_PTR normal;
-    DWORD_PTR address::moduleBase;
+    DWORD_PTR moduleBase;
 }
 
 namespace kb // offsets
@@ -227,7 +227,8 @@ BOOL APIENTRY DllMain( HMODULE hModule,
                 {
                     float newYKnockback = config.getNumber("y_knockback");
                     log << "Y Knockback: " << newYKnockback << '\n';
-                    hook.WriteBytes(0x7FF6F51E0000,
+                    // TODO make customizable
+                    hook.WriteBytes(0x7FF6F51E0000, //     1   2   3   4
                         { 0xC7, 0x83, 0xD8, 0x04, 00, 00, 00, 00, 00, 0x3F, 0xE9, 0x47, 0xF9, 0xF3, 0x00 });
                     /*
                     * C7 83 D8 04 00 00 00 00 00 3F E9 47 F9 F3 00
