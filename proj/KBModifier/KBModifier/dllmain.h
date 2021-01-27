@@ -18,7 +18,7 @@
 
 #define log std::cout<<"[Knockback] "
 
-// knockback
+// deprecated
 extern "C" KBMOD_API void SetKnockbackStatus(int status); // sets whether u take knockback or not
 extern "C" KBMOD_API void SetSprintKnockback(int mode); // sets how much knockback u take while sprinting/w-tapping
 extern "C" KBMOD_API void SetSprintKnockbackStr(string mode); // pretty much setsprintknockback but its "default","decreased","far",etc

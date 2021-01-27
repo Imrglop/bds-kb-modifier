@@ -13,7 +13,7 @@ HANDLE hConsole;
 
 namespace address
 {
-    DWORD_PTR sprint;
+    //DWORD_PTR sprint;
     DWORD_PTR code;
     DWORD_PTR yKnockback;
     DWORD_PTR normal;
@@ -75,13 +75,22 @@ void SetSprintKnockback(int mode)
 
 void SetSprintKnockbackStr(string mode)
 {
+    SetConsoleTextAttribute(hConsole, 0xE); // yellow
+    log << "Warning: Set Sprint Knockback String is outdated/depreacted. Use SetSprintKnockbackFloat instead.\n";
+    SetConsoleTextAttribute(hConsole, 0xF);
     auto vec = kb::get(mode);
     hook.WriteBytes(address::code,
         { 0xF3, 0x0F, 0x10, 0x0D, vec[0], vec[1], vec[2], vec[3] });
 }
 
 void SetSprintKnockbackFloat(float kb) {
-
+    float* overrideFloat = (float*)(address::moduleBase + 0x1bd579b);
+    DWORD oldProtect;
+    VirtualProtect((void*)overrideFloat, sizeof(float), PAGE_EXECUTE_READWRITE, &oldProtect);
+    *overrideFloat = kb;
+    VirtualProtect((void*)overrideFloat, sizeof(float), oldProtect, &oldProtect);
+    hook.WriteBytes(address::code,
+        { 0xF3, 0x0F, 0x10, 0x0D, 0x6D, 0x5E, 0xCA, 0x00 }); //movss xmm1,[bedrock_server.exe+0x1bd579b]
 }
 
 void SetKnockback(int mode)
@@ -98,9 +107,12 @@ void SetYKnockback(float yKnockback)
 }
 
 
-// [ [deprecated]]
+// old
 void SetKnockbackStr(string mode)
 {
+    SetConsoleTextAttribute(hConsole, 0xE); // yellow
+    log << "Warning: Set Knockback String is outdated/depreacted. Use SetKnockbackFloat instead.\n";
+    SetConsoleTextAttribute(hConsole, 0xF);
     auto vec = kb::get(mode);
     hook.WriteBytes(address::normal,
         { 0xF3, 0x0f, 0x59, 0x25, vec[0], vec[1], vec[2], vec[3] });
@@ -245,7 +257,6 @@ BOOL APIENTRY DllMain( HMODULE hModule,
             string newSprintKnockback = "";
             if (CompareVersions(currentFormatVersion, "1.1.0")/*true*/)
             {
-                log << "1.1.0 Detected\n";
                 if (CompareVersions(currentFormatVersion, "1.2.0")/*true*/)
                 {
                     if (isYKnockback)
@@ -305,20 +316,16 @@ BOOL APIENTRY DllMain( HMODULE hModule,
             {
                 // 1.16.200
                 log << "Turning off knockback...\n";
-                try {
-                    SetKnockbackStatus(FALSE); // turn off
-                }
-                catch (std::exception e)
-                {
-                    log << "Error patching bytes! e: " << e.what() << '\n';
-                }
+                SetKnockbackFloat(0.0);
             }
             else
             {
                 if (!CompareVersions(currentFormatVersion, "1.2.0"))
                     SetSprintKnockbackStr(newSprintKnockback);
-                else
-                    Set
+                else {
+                    SetSprintKnockbackFloat(config.getNumber("sprint_knockback"));
+                    //log << "using 1.2.0 kb method\n";
+                }
                 log << "Sprint-knockback: " << newSprintKnockback << '\n';
             }
         }

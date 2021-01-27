@@ -16,25 +16,8 @@
 ### Knockback
  The knockback you deal without sprinting, just normally
 
-```js
-// BDSX Example:
-const { NativeModule } = require("bdsx");
-const knockback = new NativeModule("KBModifier.dll");
-const SetKnockback = knockback.get("SetKnockback");
-SetKnockback(0x2); // 0.75
-```
-
 ### Sprint Knockback
  The knockback addition that gets dealed when you are sprinting or w-tapping
-
-```js
-// BDSX Example:
-const { NativeModule } = require("bdsx");
-const knockback = new NativeModule("KBModifier.dll");
-// void SetKnockbackMode(int mode)
-const SetSprintKnockback = knockback.get("SetSprintKnockback");
-SetSprintKnockback(0x2); // 0.75
-```
 
 ### Hurt Time
  The cooldown between each hit can be edited (the default is 10)
@@ -44,4 +27,4 @@ SetSprintKnockback(0x2); // 0.75
 
 ## Version
 
-BDS Version 1.16.200.2
+BDS Version 1.16.201.2
