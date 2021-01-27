@@ -24,6 +24,7 @@ extern "C" KBMOD_API void SetSprintKnockback(int mode); // sets how much knockba
 extern "C" KBMOD_API void SetSprintKnockbackStr(string mode); // pretty much setsprintknockback but its "default","decreased","far",etc
 extern "C" KBMOD_API void SetKnockback(int mode);
 extern "C" KBMOD_API void SetKnockbackStr(string mode);
+extern "C" KBMOD_API void SetKnockbackFloat(float mode); // set the knockback float
 extern "C" KBMOD_API void SetHurtTime(int ticks); // sets the time between each hit in entities
 extern "C" KBMOD_API void ReloadConfig();
 

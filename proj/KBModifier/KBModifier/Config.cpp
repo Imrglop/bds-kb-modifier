@@ -1,4 +1,4 @@
-// Simpler .properties config
+// Simpler .properties config by Imrglop
 
 #include "Config.h"
 #include <fstream>

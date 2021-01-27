@@ -80,6 +80,10 @@ void SetSprintKnockbackStr(string mode)
         { 0xF3, 0x0F, 0x10, 0x0D, vec[0], vec[1], vec[2], vec[3] });
 }
 
+void SetSprintKnockbackFloat(float kb) {
+
+}
+
 void SetKnockback(int mode)
 {
     auto vec = kb::kbValues[mode];
@@ -93,11 +97,24 @@ void SetYKnockback(float yKnockback)
         {});
 }
 
+
+// [ [deprecated]]
 void SetKnockbackStr(string mode)
 {
     auto vec = kb::get(mode);
     hook.WriteBytes(address::normal,
         { 0xF3, 0x0f, 0x59, 0x25, vec[0], vec[1], vec[2], vec[3] });
+}
+
+void SetKnockbackFloat(float kb)
+{
+    float* overrideFloat = (float*)(address::moduleBase + 0x1bd576b);
+    DWORD oldProtect;
+    VirtualProtect((void*)overrideFloat, sizeof(float), PAGE_EXECUTE_READWRITE, &oldProtect);
+    *overrideFloat = kb;
+    VirtualProtect((void*)overrideFloat, sizeof(float), oldProtect, &oldProtect);
+    hook.WriteBytes(address::normal,
+        { 0xF3, 0x0F, 0x59, 0x25, 0xCC, 0x5E, 0xCA, 0x00 });
 }
 
 void ReloadConfig()
@@ -165,20 +182,27 @@ void SetMobCollision(int status) // 1/0
 
 bool CompareVersions(string ver1, string ver2)
 {
-    std::vector<string> sl1;
-    auto is = std::istringstream(ver1);
-    for (std::string each; std::getline(is, each, '.');) {
-        sl1.push_back(each);
-    };
+    try {
+        std::vector<string> sl1;
+        auto is = std::istringstream(ver1);
+        for (std::string each; std::getline(is, each, '.');) {
+            sl1.push_back(each);
+        };
 
-    std::vector<string> sl2;
-    auto is2 = std::istringstream(ver2);
-    for (std::string each; std::getline(is2, each, '.');) {
-        sl2.push_back(each);
-    };
-    return (sl1[0] >= sl2[0]
-        && sl1[1] >= sl2[1]
-        && sl1[2] >= sl2[2]);
+        std::vector<string> sl2;
+        auto is2 = std::istringstream(ver2);
+        for (std::string each; std::getline(is2, each, '.');) {
+            sl2.push_back(each);
+        };
+        return (sl1[0] >= sl2[0]
+            && sl1[1] >= sl2[1]
+            && sl1[2] >= sl2[2]);
+    }
+    catch (std::exception e)
+    {
+        log << "Couldn't compare versions! error: " << e.what();
+        return 0;
+    }
 }
 
 void printVector(std::vector<byte> vector) {
@@ -203,92 +227,103 @@ BOOL APIENTRY DllMain( HMODULE hModule,
             log << "Couldn't load config! Check your file.\n";
             return FALSE;
         };
-        string formatVersion = "1.2.0";
-        string currentFormatVersion = config.getString("format_version");
-        log << "Loaded config with format version " << currentFormatVersion << '\n';
-        hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
-        bool isNoKnockback = config.getBool("no_knockback");
-        bool isYKnockback = config.getBool("edit_y_knockback");
-        int newHurtTime = config.getInteger("hurt_time");
-//      bool isAdvancedKnockback = config.getBool("advanced_knockback");
-        // allocate memory , needed for stuff
-        VirtualAlloc((LPVOID)(address::moduleBase + 0x7FF6F51E0000), 0x100, MEM_COMMIT, PAGE_EXECUTE_READWRITE); 
-        DWORD pID = GetCurrentProcessId();
-        address::moduleBase = GetModuleBase(pID, (WCHAR*)_T("bedrock_server.exe"));
-        address::code = address::moduleBase + 0xF2F926;
-        address::yKnockback = address::moduleBase + 0xf2f94e;
-        address::normal = address::moduleBase + 0xf2f897;
-        string newSprintKnockback;
-        if (CompareVersions("1.1.0", currentFormatVersion))
-        {
-            if (CompareVersions("1.2.0", currentFormatVersion))
-            {
-                if (isYKnockback) 
-                {
-                    float newYKnockback = config.getNumber("y_knockback");
-                    log << "Y Knockback: " << newYKnockback << '\n';
-                    // TODO make customizable
-                    hook.WriteBytes(0x7FF6F51E0000, //     1   2   3   4
-                        { 0xC7, 0x83, 0xD8, 0x04, 00, 00, 00, 00, 00, 0x3F, 0xE9, 0x47, 0xF9, 0xF3, 0x00 });
-                    /*
-                    * C7 83 D8 04 00 00 00 00 00 3F E9 47 F9 F3 00
-                    * disassembled:
-                    * mov [rbx+000004D8],3F000000
-                    * jmp bedrock_server.exe+F2F956
-                    */
+        try {
+            string formatVersion = "1.2.0";
+            string currentFormatVersion = config.getString("format_version");
+            hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+            bool isNoKnockback = config.getBool("no_knockback");
+            bool isYKnockback = config.getBool("edit_y_knockback");
+            int newHurtTime = config.getInteger("hurt_time");
+            //      bool isAdvancedKnockback = config.getBool("advanced_knockback");
 
-                    hook.WriteBytes(address::yKnockback,
-                        { 0xE9, 0xAD, 0x06, 0x0C, 0xFF, 0x0F, 0x1F, 00 });
-                    /*
-                    * old:
-                    * F3 0F 11 93 D8 04 00 00
-                    * new:
-                    * E9 AD 06 0C FF 0F 1F 00
-                    * disassembled:
-                    * jmp 7FF6F611F94E
-                    * nop dword ptr [rax]
-                    */
+            DWORD pID = GetCurrentProcessId();
+            address::moduleBase = GetModuleBase(pID, (WCHAR*)_T("bedrock_server.exe"));
+            VirtualAlloc((void*)(0x7FF6F51E0000), 0x100, MEM_COMMIT, PAGE_EXECUTE_READWRITE);
+            address::code = address::moduleBase + 0xF2F926;
+            address::yKnockback = address::moduleBase + 0xf2f94e;
+            address::normal = address::moduleBase + 0xf2f897;
+            string newSprintKnockback = "";
+            if (CompareVersions(currentFormatVersion, "1.1.0")/*true*/)
+            {
+                log << "1.1.0 Detected\n";
+                if (CompareVersions(currentFormatVersion, "1.2.0")/*true*/)
+                {
+                    if (isYKnockback)
+                    {
+                        float newYKnockback = config.getNumber("y_knockback");
+                        log << "Y Knockback: " << newYKnockback << '\n';
+                        // TODO make customizable
+                        /*hook.WriteBytes(0x7FF6F51E0000, //     1   2   3   4
+                            { 0xC7, 0x83, 0xD8, 0x04, 00, 00, 00, 00, 00, 0x3F, 0xE9, 0x47, 0xF9, 0xF3, 0x00 });*/
+                        /*
+                        * C7 83 D8 04 00 00 00 00 00 3F E9 47 F9 F3 00
+                        * disassembled:
+                        * mov [rbx+000004D8],3F000000
+                        * jmp bedrock_server.exe+F2F956
+                        */
+
+                        /*hook.WriteBytes(address::yKnockback,
+                            { 0xE9, 0xAD, 0x06, 0x0C, 0xFF, 0x0F, 0x1F, 00 });*/
+                        /*
+                        * old:
+                        * F3 0F 11 93 D8 04 00 00
+                        * new:
+                        * E9 AD 06 0C FF 0F 1F 00
+                        * disassembled:
+                        * jmp 7FF6F611F94E
+                        * nop dword ptr [rax]
+                        */
+                    }
+                }
+                newSprintKnockback = config.getString("sprint_knockback");
+                string newKnockback = config.getString("knockback");
+                if (!CompareVersions(currentFormatVersion, "1.2.0"))
+                    SetKnockbackStr(newKnockback); 
+                else SetKnockbackFloat(config.getNumber("knockback"));
+
+                log << "Knockback: " << newKnockback << '\n';
+                SetHurtTime(newHurtTime);
+                log << "Hurt Time: " << newHurtTime << '\n';
+                bool isCollisionDisabled = config.getBool("mob_collision_off");
+                if (isCollisionDisabled) {
+                    log << "Disabling mob collision\n";
+                    SetMobCollision(FALSE);
                 }
             }
-            newSprintKnockback = config.getString("sprint_knockback");
-            string newKnockback = config.getString("knockback");
-            SetKnockbackStr(newKnockback);
-            log << "Knockback: " << newKnockback << '\n';
-            SetHurtTime(newHurtTime);
-            log << "Hurt Time: " << newHurtTime << '\n';
-            bool isCollisionDisabled = config.getBool("mob_collision_off");
-            if (isCollisionDisabled) {
-                log << "Disabling mob collision\n";
-                SetMobCollision(FALSE);
-            }
-        } 
-        else if (!CompareVersions(currentFormatVersion, formatVersion)) 
-        {
-            if (!CompareVersions("1.1.0", formatVersion))
+            else if (!CompareVersions(currentFormatVersion, formatVersion))
             {
-                newSprintKnockback = config.getString("new_knockback");
+                if (!CompareVersions("1.1.0", formatVersion))
+                {
+                    newSprintKnockback = config.getString("new_knockback");
+                }
+                SetConsoleTextAttribute(hConsole, 0xE); // yellow
+                log << "Outdated format version " << currentFormatVersion << ", new version: " << formatVersion << '\n';
+                log << "If you want to update, go to github.com/Imrglop/bds-kb-modifier\n";
+                SetConsoleTextAttribute(hConsole, 0x7); // light gray idk
             }
-            SetConsoleTextAttribute(hConsole, 0xE); // yellow
-            log << "Outdated format version " << currentFormatVersion << ", new version: " << formatVersion << '\n';
-            log << "If you want to update, go to github.com/Imrglop/bds-kb-modifier\n";
-            SetConsoleTextAttribute(hConsole, 0x7); // light gray idk
-        }
-        if (isNoKnockback) 
-        {
-            // 1.16.200
-            log << "Turning off knockback...\n";
-            try {
-                SetKnockbackStatus(FALSE); // turn off
-            }
-            catch (std::exception e)
+            if (isNoKnockback)
             {
-                log << "Error patching bytes! e: " << e.what() << '\n';
+                // 1.16.200
+                log << "Turning off knockback...\n";
+                try {
+                    SetKnockbackStatus(FALSE); // turn off
+                }
+                catch (std::exception e)
+                {
+                    log << "Error patching bytes! e: " << e.what() << '\n';
+                }
+            }
+            else
+            {
+                if (!CompareVersions(currentFormatVersion, "1.2.0"))
+                    SetSprintKnockbackStr(newSprintKnockback);
+                else
+                    Set
+                log << "Sprint-knockback: " << newSprintKnockback << '\n';
             }
         }
-        else 
-        {
-            SetSprintKnockbackStr(newSprintKnockback);
-            log << "Sprint-knockback: " << newSprintKnockback << '\n';
+        catch (std::exception e) {
+            log << "Couldn't load KB Mod! Error: " << e.what() << '\n';
         }
     }
     return TRUE;
