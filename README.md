@@ -1,4 +1,7 @@
 # BDS Knockback Modifier
+
+ Discontinued, but [PlatinumBDS](https://github.com/Imrglop/PlatinumBDS) has similar features
+
  Simple knockback editor for BDS
  
  Can bring back W-Tapping like in 1.12 (depending on your setting), edit how much knockback players/entities, etc
